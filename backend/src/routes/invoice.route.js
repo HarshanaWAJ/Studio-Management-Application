@@ -1,12 +1,13 @@
 import express from "express";
 import { authenticate } from "../middleware/auth.middleware.js";
+import { checkSubscriptionActive } from "../middleware/subscription.middleware.js";
 import { makeCrudController } from "../controllers/crud.controller.js";
 import { invoiceService } from "../services/invoice.service.js";
 
 const router = express.Router();
 const ctrl   = makeCrudController(invoiceService);
 
-router.use(authenticate);
+router.use(authenticate, checkSubscriptionActive);
 router.get("/",       ctrl.getAll);
 router.get("/:id",    ctrl.getById);
 router.post("/",      ctrl.create);

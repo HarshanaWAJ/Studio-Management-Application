@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "compromise": "^14.15.1",
+    "compromise-dates": "^3.8.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
@@ -20,6 +22,8 @@
     "jsonwebtoken": "^9.0.3",
     "msnodesqlv8": "^5.2.0",
     "mssql": "^12.5.5",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.14",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^1.0.0"
   },

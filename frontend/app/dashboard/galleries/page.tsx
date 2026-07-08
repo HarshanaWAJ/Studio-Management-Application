@@ -20,11 +20,13 @@ export default function GalleriesPage() {
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState("");
   const [copied, setCopied]   = useState<number|null>(null);
+  const [loadError, setLoadError] = useState("");
 
   const load = () => {
-    setLoading(true);
+    setLoading(true); setLoadError("");
     Promise.all([api.get<Gallery[]>("/galleries"), api.get<Client[]>("/clients")])
       .then(([g,c]) => { setItems(g); setClients(c); })
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load galleries. Is the server running?"))
       .finally(()=>setLoading(false));
   };
   useEffect(()=>{load();},[]);
@@ -52,11 +54,16 @@ export default function GalleriesPage() {
   return (
     <div style={{padding:"32px"}}>
       <p style={{fontSize:12,color:"#71717a",marginBottom:24}}>Upload, curate and share proofing galleries with clients directly from your studio dashboard.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       <DataTable
         title="Galleries" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={()=>{setEditing(null);setForm({...EMPTY});setError("");setModal(true);}}
         onEdit={r=>{const g=r as unknown as Gallery;setEditing(g);setForm({title:g.title,clientId:String(g.clientId),isPublic:g.isPublic as unknown as number,description:g.description||"",coverPhoto:g.coverPhoto||"",photos:g.photos||"",expiresAt:g.expiresAt||""});setError("");setModal(true);}}
-        onDelete={async r=>{if(confirm("Delete gallery?")){ await api.delete(`/galleries/${(r as unknown as Gallery).id}`);load();}}}
+        onDelete={async r=>{if(confirm("Delete gallery?")){ try { await api.delete(`/galleries/${(r as unknown as Gallery).id}`);load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete gallery."); } }}}
         searchKeys={["title"]} addLabel="New Gallery"
         columns={[
           {key:"title",label:"Gallery Title",render:r=><div style={{display:"flex",alignItems:"center",gap:8}}><ImageIcon style={{width:14,height:14,color:"#c084fc"}} />{(r as unknown as Gallery).title}</div>},

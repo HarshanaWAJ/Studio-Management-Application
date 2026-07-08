@@ -1,12 +1,15 @@
 import { AppDataSource } from "../config/data-source.js";
 import { Studio } from "../models/Studio.js";
 import { User } from "../models/User.js";
-import { hashPassword } from "./auth.service.js";
+import { hashPassword, issueRegistrationOtp } from "./auth.service.js";
 import { signAccessToken, signRefreshToken } from "../middleware/auth.middleware.js";
+import { resolvePermissions } from "../config/permissions.js";
+import { sendWelcomeEmail } from "./email.service.js";
+import { assignDefaultTrialPlan } from "./subscription.service.js";
 
 // ── REGISTER (Studio + Admin User — single transaction) ──────────────────────
 export const registerStudioWithAdmin = async (studioData, userData) => {
-    return await AppDataSource.transaction(async (manager) => {
+    const { savedStudio, savedUser } = await AppDataSource.transaction(async (manager) => {
         // 1. Create the studio
         const studio = manager.create(Studio, studioData);
         const savedStudio = await manager.save(Studio, studio);
@@ -23,26 +26,36 @@ export const registerStudioWithAdmin = async (studioData, userData) => {
         });
         const savedUser = await manager.save(User, user);
 
-        // 3. Build token pair for immediate use after registration
-        const tokenPayload = {
-            id: savedUser.id,
-            email: savedUser.email,
-            role: savedUser.role,
-            studioId: savedUser.studioId,
-        };
-        const accessToken = signAccessToken(tokenPayload);
-        const refreshToken = signRefreshToken({ id: savedUser.id });
-
-        // Strip passwordHash from returned user
-        const { passwordHash: _ph, ...safeUser } = savedUser;
-
-        return {
-            studio: savedStudio,
-            user: safeUser,
-            accessToken,
-            refreshToken,
-        };
+        return { savedStudio, savedUser };
     });
+
+    // 3. Build token pair for immediate use after registration
+    const tokenPayload = {
+        id: savedUser.id,
+        email: savedUser.email,
+        role: savedUser.role,
+        studioId: savedUser.studioId,
+        permissions: resolvePermissions(savedUser.role, savedUser.permissions),
+    };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken({ id: savedUser.id });
+
+    // 4. Fire off the OTP verification email + welcome email (non-blocking failures)
+    issueRegistrationOtp(savedUser).catch((e) => console.error("Verification OTP email failed:", e.message));
+    sendWelcomeEmail(savedUser, savedStudio.studioName).catch((e) => console.error("Welcome email failed:", e.message));
+
+    // 5. Every new studio starts on the Free Trial plan (30 days, all features)
+    assignDefaultTrialPlan(savedStudio.id).catch((e) => console.error("Trial plan assignment failed:", e.message));
+
+    // Strip passwordHash from returned user
+    const { passwordHash: _ph, ...safeUser } = savedUser;
+
+    return {
+        studio: savedStudio,
+        user: safeUser,
+        accessToken,
+        refreshToken,
+    };
 };
 
 // ── READ ALL ─────────────────────────────────────────────────────────────────

@@ -270,7 +270,8 @@ export default function RegisterPage() {
       const data = await res.json();
       if (!res.ok) { setGeneralError(data?.message || "Registration failed."); setLoading(false); return; }
       setSuccess(true);
-      setTimeout(() => router.push("/auth/login"), 2000);
+      // Email must be verified via OTP before the account can log in.
+      setTimeout(() => router.push(`/auth/verify-email?email=${encodeURIComponent(adminEmail.trim().toLowerCase())}`), 1800);
     } catch {
       setGeneralError("Unable to reach the server. Please try again.");
       setLoading(false);
@@ -352,7 +353,7 @@ export default function RegisterPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "#4ade80", marginBottom: 4 }}>Studio Registered!</div>
-                  <div style={{ fontSize: 12, color: "#a1a1aa" }}>Redirecting to login…</div>
+                  <div style={{ fontSize: 12, color: "#a1a1aa" }}>We&apos;ve sent a 6-digit verification code to your email. Redirecting…</div>
                 </div>
               </motion.div>
             )}

@@ -16,8 +16,15 @@ export default function ClientsPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const load = () => { setLoading(true); api.get<Client[]>("/clients").then(setClients).finally(() => setLoading(false)); };
+  const load = () => {
+    setLoading(true); setLoadError("");
+    api.get<Client[]>("/clients")
+      .then(setClients)
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load clients. Is the server running?"))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => { load(); }, []);
 
   const openAdd = () => { setEditing(null); setForm({ ...EMPTY }); setError(""); setModal(true); };
@@ -36,7 +43,11 @@ export default function ClientsPage() {
 
   const handleDelete = async (c: Client) => {
     if (!confirm(`Delete ${c.firstName} ${c.lastName}?`)) return;
-    await api.delete(`/clients/${c.id}`); load();
+    try {
+      await api.delete(`/clients/${c.id}`); load();
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : "Failed to delete client.");
+    }
   };
 
   const f = (k: keyof typeof form) => ({ value: form[k], onChange: (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>) => setForm(p => ({ ...p, [k]: e.target.value })) });
@@ -44,6 +55,11 @@ export default function ClientsPage() {
   return (
     <div style={{ padding: "32px" }}>
       <p style={{ fontSize: 12, color: "#71717a", marginBottom: 24 }}>CRM — contacts, shoot history, galleries and invoices in one place.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       <DataTable
         title="Clients" data={clients} loading={loading}
         onAdd={openAdd} onEdit={c => openEdit(c as unknown as Client)} onDelete={c => handleDelete(c as unknown as Client)}

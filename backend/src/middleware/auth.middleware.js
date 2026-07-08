@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { hasPermission } from "../config/permissions.js";
 
 const ACCESS_SECRET = process.env.JWT_SECRET;
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
@@ -51,6 +52,29 @@ export const authorize = (...roles) => {
         if (!roles.includes(req.user.role)) {
             return res.status(403).json({
                 message: `Forbidden. Required role(s): ${roles.join(", ")}`,
+            });
+        }
+        next();
+    };
+};
+
+// ── requirePermission middleware factory ──────────────────────────────────────
+// Fine-grained RBAC check, layered on top of role. The JWT payload carries
+// the user's fully-resolved `permissions` array (role defaults + overrides)
+// computed at login/refresh time — see auth.service.js buildTokenPair().
+// Usage: requirePermission("staff:invite")
+export const requirePermission = (...required) => {
+    return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ message: "Not authenticated." });
+        }
+        // super_admin / studio_admin bypass fine-grained checks — they hold
+        // every permission by default anyway (see config/permissions.js).
+        const permissions = req.user.permissions || [];
+        const ok = required.every((p) => hasPermission(permissions, p));
+        if (!ok) {
+            return res.status(403).json({
+                message: `Forbidden. Missing permission(s): ${required.join(", ")}`,
             });
         }
         next();

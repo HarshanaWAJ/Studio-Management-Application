@@ -81,8 +81,15 @@ export default function FramesPage() {
   const [form, setForm] = useState({...EMPTY});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const load = () => { setLoading(true); api.get<Frame[]>("/frames").then(setItems).finally(()=>setLoading(false)); };
+  const load = () => {
+    setLoading(true); setLoadError("");
+    api.get<Frame[]>("/frames")
+      .then(setItems)
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load frames. Is the server running?"))
+      .finally(()=>setLoading(false));
+  };
   useEffect(()=>{load();},[]);
 
   const f = (k:string) => ({ value:(form as Record<string,unknown>)[k] as string, onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement>)=>setForm(p=>({...p,[k]:e.target.value})) });
@@ -101,12 +108,17 @@ export default function FramesPage() {
   return (
     <div style={{padding:"32px"}}>
       <p style={{fontSize:12,color:"#71717a",marginBottom:24}}>Configure frame types with wood, UOM, pricing per unit. Auto-calculates frame perimeter and glass area based on photo dimensions.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       <FrameCalculator frames={items} />
       <DataTable
         title="Frame Configurations" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={()=>{setEditing(null);setForm({...EMPTY});setError("");setModal(true);}}
         onEdit={r=>{const fr=r as unknown as Frame;setEditing(fr);setForm({frameName:fr.frameName,woodType:fr.woodType||"teak",uom:fr.uom,pricePerUom:String(fr.pricePerUom),glassType:fr.glassType||"clear",glassPricePerUom:String(fr.glassPricePerUom||""),description:fr.description||"",isActive:fr.isActive});setError("");setModal(true);}}
-        onDelete={async r=>{if(confirm("Delete frame?")){ await api.delete(`/frames/${(r as unknown as Frame).id}`);load();}}}
+        onDelete={async r=>{if(confirm("Delete frame?")){ try { await api.delete(`/frames/${(r as unknown as Frame).id}`);load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete frame."); } }}}
         searchKeys={["frameName","woodType"]} addLabel="Add Frame"
         columns={[
           {key:"frameName",label:"Frame Name"},

@@ -15,8 +15,15 @@ export default function PackagesPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const load = () => { setLoading(true); api.get<Package[]>("/packages").then(setItems).finally(() => setLoading(false)); };
+  const load = () => {
+    setLoading(true); setLoadError("");
+    api.get<Package[]>("/packages")
+      .then(setItems)
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load packages. Is the server running?"))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => { load(); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,11 +42,16 @@ export default function PackagesPage() {
   return (
     <div style={{ padding: "32px" }}>
       <p style={{ fontSize: 12, color: "#71717a", marginBottom: 24 }}>Configure studio packages — names, pricing, duration and what's included. All booking fees are studio-independent.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       <DataTable
         title="Packages" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={() => { setEditing(null); setForm({...EMPTY}); setError(""); setModal(true); }}
         onEdit={r => { const p=r as unknown as Package; setEditing(p); setForm({ name:p.name,description:p.description||"",price:String(p.price),duration:String(p.duration||""),includes:p.includes||"",isActive:p.isActive }); setError(""); setModal(true); }}
-        onDelete={async r => { if (confirm("Delete package?")) { await api.delete(`/packages/${(r as unknown as Package).id}`); load(); } }}
+        onDelete={async r => { if (confirm("Delete package?")) { try { await api.delete(`/packages/${(r as unknown as Package).id}`); load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete package."); } } }}
         searchKeys={["name"]}
         columns={[
           { key:"name",label:"Package Name" },

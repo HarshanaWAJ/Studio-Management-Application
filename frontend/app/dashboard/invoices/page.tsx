@@ -28,11 +28,13 @@ export default function InvoicesPage() {
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyItem()]);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const load = () => {
-    setLoading(true);
+    setLoading(true); setLoadError("");
     Promise.all([api.get<Invoice[]>("/invoices"), api.get<Client[]>("/clients")])
       .then(([inv,cli]) => { setItems(inv); setClients(cli); })
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load invoices. Is the server running?"))
       .finally(()=>setLoading(false));
   };
   useEffect(()=>{load();},[]);
@@ -85,11 +87,16 @@ export default function InvoicesPage() {
   return (
     <div style={{padding:"32px"}}>
       <p style={{fontSize:12,color:"#71717a",marginBottom:24}}>Generate branded invoices, collect deposits and track outstanding payments. Always create a quotation first.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       <DataTable
         title="Invoices" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={openAdd} addLabel="New Invoice"
         onEdit={r=>openEdit(r as unknown as Invoice)}
-        onDelete={async r=>{if(confirm("Delete invoice?")){ await api.delete(`/invoices/${(r as unknown as Invoice).id}`);load();}}}
+        onDelete={async r=>{if(confirm("Delete invoice?")){ try { await api.delete(`/invoices/${(r as unknown as Invoice).id}`);load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete invoice."); } }}}
         searchKeys={["invoiceNumber","status"]}
         columns={[
           {key:"invoiceNumber",label:"Invoice #"},

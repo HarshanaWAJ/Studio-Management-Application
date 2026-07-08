@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Camera, LayoutDashboard, Calendar, Users, Package, FileText,
   Image, Wrench, Box, Quote, Menu, X, LogOut, ChevronRight,
-  Frame, Bell,
+  Frame, Bell, UserCog, Globe, MessageSquare, CreditCard
 } from "lucide-react";
 import { logout } from "@/lib/api";
 
@@ -14,6 +14,9 @@ const NAV = [
   { href: "/dashboard",            label: "Dashboard",   icon: LayoutDashboard },
   { href: "/dashboard/bookings",   label: "Bookings",    icon: Calendar },
   { href: "/dashboard/clients",    label: "Clients",     icon: Users },
+  { href: "/dashboard/staff",      label: "Staff",       icon: UserCog },
+  { href: "/dashboard/website",    label: "Website",     icon: Globe },
+  { href: "/dashboard/inquiries",  label: "Contact Us",  icon: MessageSquare },
   { href: "/dashboard/packages",   label: "Packages",    icon: Package },
   { href: "/dashboard/quotations", label: "Quotations",  icon: Quote },
   { href: "/dashboard/invoices",   label: "Invoices",    icon: FileText },
@@ -21,13 +24,14 @@ const NAV = [
   { href: "/dashboard/equipment",  label: "Equipment",   icon: Wrench },
   { href: "/dashboard/frames",     label: "Frames",      icon: Frame },
   { href: "/dashboard/inventory",  label: "Inventory",   icon: Box },
+  { href: "/dashboard/subscription",label:"Subscription",icon: CreditCard },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
   const [open, setOpen]   = useState(false);
-  const [user,  setUser]  = useState<{ firstName?: string; lastName?: string; email?: string; role?: string } | null>(null);
+  const [user,  setUser]  = useState<{ firstName?: string; lastName?: string; email?: string; role?: string; permissions?: string[] } | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
@@ -68,7 +72,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Nav */}
         <nav style={{ padding: "12px 12px", flex: 1 }}>
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {NAV.filter(({ href }) =>
+            (href !== "/dashboard/staff" || (user?.permissions || []).includes("staff:view")) &&
+            (href !== "/dashboard/website" || (user?.permissions || []).includes("website:manage")) &&
+            (href !== "/dashboard/inquiries" || (user?.permissions || []).includes("inquiries:view"))
+          ).map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
             return (
               <Link key={href} href={href}

@@ -17,8 +17,15 @@ export default function InventoryPage() {
   const [form, setForm] = useState({...EMPTY});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const load = () => { setLoading(true); api.get<Item[]>("/inventory").then(setItems).finally(()=>setLoading(false)); };
+  const load = () => {
+    setLoading(true); setLoadError("");
+    api.get<Item[]>("/inventory")
+      .then(setItems)
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load inventory. Is the server running?"))
+      .finally(()=>setLoading(false));
+  };
   useEffect(()=>{load();},[]);
 
   const lowStock = items.filter(i => Number(i.quantity) <= Number(i.minQuantity));
@@ -39,6 +46,11 @@ export default function InventoryPage() {
   return (
     <div style={{padding:"32px"}}>
       <p style={{fontSize:12,color:"#71717a",marginBottom:16}}>Track stock for frames, glass, mats, prints and all studio materials.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       {lowStock.length > 0 && (
         <div style={{padding:14,borderRadius:12,background:"rgba(248,113,113,0.08)",border:"1px solid rgba(248,113,113,0.2)",display:"flex",gap:10,marginBottom:20,alignItems:"center"}}>
           <AlertCircle style={{width:16,height:16,color:"#f87171",flexShrink:0}} />
@@ -49,7 +61,7 @@ export default function InventoryPage() {
         title="Inventory" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={()=>{setEditing(null);setForm({...EMPTY});setError("");setModal(true);}}
         onEdit={r=>{const it=r as unknown as Item;setEditing(it);setForm({itemType:it.itemType,itemName:it.itemName,sku:it.sku||"",uom:it.uom,quantity:String(it.quantity),minQuantity:String(it.minQuantity||""),costPrice:String(it.costPrice||""),sellingPrice:String(it.sellingPrice||""),location:it.location||"",notes:it.notes||""});setError("");setModal(true);}}
-        onDelete={async r=>{if(confirm("Delete item?")){ await api.delete(`/inventory/${(r as unknown as Item).id}`);load();}}}
+        onDelete={async r=>{if(confirm("Delete item?")){ try { await api.delete(`/inventory/${(r as unknown as Item).id}`);load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete item."); } }}}
         searchKeys={["itemName","sku","itemType"]} addLabel="Add Stock"
         columns={[
           {key:"itemName",label:"Item"},

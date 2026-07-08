@@ -8,6 +8,7 @@ export const Booking = new EntitySchema({
         studioId:     { type: "int",     nullable: false },
         clientId:     { type: "int",     nullable: false },
         packageId:    { type: "int",     nullable: true  },
+        assignedStaffId: { type: "uuid", nullable: true }, // optional staff/photographer assigned to this booking
         title:        { type: "varchar", nullable: false },
         description:  { type: "text",    nullable: true  },
         startTime:    { type: "datetime",nullable: false },
@@ -24,5 +25,6 @@ export const Booking = new EntitySchema({
         studio:  { type: "many-to-one", target: "Studio",  joinColumn: { name: "studioId" }, nullable: false },
         client:  { type: "many-to-one", target: "Client",  joinColumn: { name: "clientId" }, nullable: false },
         package: { type: "many-to-one", target: "Package", joinColumn: { name: "packageId" }, nullable: true },
+        assignedStaff: { type: "many-to-one", target: "User", joinColumn: { name: "assignedStaffId" }, nullable: true },
     },
 });

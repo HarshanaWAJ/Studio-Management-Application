@@ -18,8 +18,15 @@ export default function EquipmentPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
-  const load = () => { setLoading(true); api.get<Equipment[]>("/equipment").then(setItems).finally(()=>setLoading(false)); };
+  const load = () => {
+    setLoading(true); setLoadError("");
+    api.get<Equipment[]>("/equipment")
+      .then(setItems)
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load equipment. Is the server running?"))
+      .finally(()=>setLoading(false));
+  };
   useEffect(()=>{load();},[]);
 
   const COND_COLOR: Record<string,string> = { excellent:"#4ade80",good:"#60a5fa",fair:"#f59e0b",poor:"#f87171" };
@@ -39,11 +46,16 @@ export default function EquipmentPage() {
   return (
     <div style={{padding:"32px"}}>
       <p style={{fontSize:12,color:"#71717a",marginBottom:24}}>Track cameras, lenses, lights and studio gear — with availability status and maintenance logs.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
       <DataTable
         title="Equipment" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={()=>{setEditing(null);setForm({...EMPTY});setError("");setModal(true);}}
         onEdit={r=>{const eq=r as unknown as Equipment;setEditing(eq);setForm({name:eq.name,category:eq.category,brand:eq.brand||"",model:eq.model||"",serialNumber:eq.serialNumber||"",purchaseDate:eq.purchaseDate||"",purchasePrice:String(eq.purchasePrice||""),condition:eq.condition,isAvailable:eq.isAvailable,lastMaintenance:eq.lastMaintenance||"",nextMaintenance:eq.nextMaintenance||"",maintenanceNotes:eq.maintenanceNotes||"",notes:eq.notes||""});setError("");setModal(true);}}
-        onDelete={async r=>{if(confirm("Delete equipment?")){ await api.delete(`/equipment/${(r as unknown as Equipment).id}`);load();}}}
+        onDelete={async r=>{if(confirm("Delete equipment?")){ try { await api.delete(`/equipment/${(r as unknown as Equipment).id}`);load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete equipment."); } }}}
         searchKeys={["name","brand","model","category"]}
         columns={[
           {key:"name",label:"Name"},

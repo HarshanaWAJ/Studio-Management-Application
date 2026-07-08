@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { DataTable } from "@/components/ui/DataTable";
 import { Modal, FormField, Input, Select, Textarea, SubmitButton } from "@/components/ui/Modal";
+import AiBookingAssistant from "@/components/ui/AiBookingAssistant";
+import { Sparkles } from "lucide-react";
 
 type Booking = { id:number; title:string; status:string; startTime:string; endTime:string; totalAmount:number; depositPaid:number; notes:string; clientId:number; packageId:number };
 type Client  = { id:number; firstName:string; lastName:string };
@@ -22,20 +24,39 @@ export default function BookingsPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [showAssistant, setShowAssistant] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const load = () => {
-    setLoading(true);
+    setLoading(true); setLoadError("");
     Promise.all([
       api.get<Booking[]>("/bookings"),
       api.get<Client[]>("/clients"),
       api.get<Package[]>("/packages"),
     ]).then(([b,c,p]) => { setItems(b); setClients(c); setPackages(p); })
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : "Failed to load bookings. Is the server running?"))
       .finally(() => setLoading(false));
   };
   useEffect(() => { load(); }, []);
 
   const fmt = (dt: string) => dt ? new Date(dt).toLocaleString("en-GB",{dateStyle:"short",timeStyle:"short"}) : "—";
   const f = (k: string) => ({ value: (form as Record<string,unknown>)[k] as string, onChange: (e: React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>) => setForm(p => ({ ...p, [k]: e.target.value })) });
+
+  const applyAiDraft = (draft: { title: string; clientId?: number; packageId?: number; startTime: string; endTime: string; notes?: string }) => {
+    setEditing(null);
+    setForm({
+      ...EMPTY,
+      title: draft.title,
+      clientId: draft.clientId ? String(draft.clientId) : "",
+      packageId: draft.packageId ? String(draft.packageId) : "",
+      startTime: draft.startTime.slice(0, 16),
+      endTime: draft.endTime.slice(0, 16),
+      notes: draft.notes || "",
+    });
+    setError("");
+    setShowAssistant(false);
+    setModal(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true); setError("");
@@ -50,12 +71,30 @@ export default function BookingsPage() {
 
   return (
     <div style={{ padding:"32px" }}>
-      <p style={{fontSize:12,color:"#71717a",marginBottom:24}}>Smart booking system — conflict-free scheduling, status tracking and client assignments.</p>
+      <p style={{fontSize:12,color:"#71717a",marginBottom:16}}>Smart booking system — conflict-free scheduling, status tracking and client assignments.</p>
+      {loadError && (
+        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 8, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)", color: "#f87171", fontSize: 12 }}>
+          {loadError}
+        </div>
+      )}
+
+      {!showAssistant && (
+        <button
+          onClick={() => setShowAssistant(true)}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", marginBottom: 20, background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 10, color: "#f59e0b", fontSize: 12, fontWeight: 700, cursor: "pointer" }}
+        >
+          <Sparkles style={{ width: 14, height: 14 }} /> AI Assist Booking
+        </button>
+      )}
+      {showAssistant && (
+        <AiBookingAssistant onUseDraft={applyAiDraft} onClose={() => setShowAssistant(false)} />
+      )}
+
       <DataTable
         title="Bookings" data={items as unknown as Record<string,unknown>[]} loading={loading}
         onAdd={() => { setEditing(null); setForm({...EMPTY}); setError(""); setModal(true); }}
         onEdit={r => { const b=r as unknown as Booking; setEditing(b); setForm({ title:b.title,clientId:String(b.clientId),packageId:String(b.packageId||""),startTime:b.startTime?.slice(0,16)||"",endTime:b.endTime?.slice(0,16)||"",status:b.status,totalAmount:String(b.totalAmount||""),depositPaid:String(b.depositPaid||""),notes:b.notes||"" }); setError(""); setModal(true); }}
-        onDelete={async r => { if(confirm("Delete booking?")){ await api.delete(`/bookings/${(r as unknown as Booking).id}`); load(); }}}
+        onDelete={async r => { if(confirm("Delete booking?")){ try { await api.delete(`/bookings/${(r as unknown as Booking).id}`); load(); } catch (e: unknown) { setLoadError(e instanceof Error ? e.message : "Failed to delete booking."); } }}}
         searchKeys={["title","status"]} addLabel="New Booking"
         columns={[
           { key:"title",label:"Title" },

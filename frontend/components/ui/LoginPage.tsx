@@ -218,9 +218,16 @@ export default function LoginPage() {
           <AnimatePresence>
             {errors.general && (
               <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                style={{ marginBottom: 24, padding: 16, borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", alignItems: "center", gap: 12 }}>
-                <AlertCircle style={{ width: 16, height: 16, color: "#f87171", flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: "#f87171" }}>{errors.general}</span>
+                style={{ marginBottom: 24, padding: 16, borderRadius: 12, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <AlertCircle style={{ width: 16, height: 16, color: "#f87171", flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "#f87171" }}>{errors.general}</span>
+                </div>
+                {errors.general.toLowerCase().includes("verify") && (
+                  <Link href="/auth/verify-email" style={{ fontSize: 12, color: "#f59e0b", fontWeight: 600, marginLeft: 28 }}>
+                    Resend verification email →
+                  </Link>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -265,7 +272,7 @@ export default function LoginPage() {
                 </div>
                 <span style={{ fontSize: 12, color: "#a1a1aa" }}>Remember me</span>
               </label>
-              <a href="#" style={{ fontSize: 12, color: "#f59e0b", textDecoration: "none", fontWeight: 500 }}>Forgot password?</a>
+              <Link href="/auth/forgot-password" style={{ fontSize: 12, color: "#f59e0b", textDecoration: "none", fontWeight: 500 }}>Forgot password?</Link>
             </div>
 
             {/* Submit */}

@@ -33,6 +33,17 @@ export const Studio = new EntitySchema({
             nullable: false
         },
 
+        // e.g. "Wedding & Portrait Photography" — feeds the AI website builder
+        category: {
+            type: "varchar",
+            nullable: true
+        },
+
+        description: {
+            type: "text",
+            nullable: true
+        },
+
         isActive: {
             type: "bit",
             default: 1,
